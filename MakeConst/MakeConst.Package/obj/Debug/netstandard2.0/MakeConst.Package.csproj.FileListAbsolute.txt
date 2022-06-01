@@ -1,0 +1,17 @@
+C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst.Package\bin\Debug\netstandard2.0\tools\install.ps1
+C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst.Package\bin\Debug\netstandard2.0\tools\uninstall.ps1
+C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst.Package\bin\Debug\netstandard2.0\MakeConst.Package.deps.json
+C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst.Package\bin\Debug\netstandard2.0\MakeConst.Package.dll
+C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst.Package\bin\Debug\netstandard2.0\MakeConst.Package.pdb
+C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst.Package\bin\Debug\netstandard2.0\MakeConst.CodeFixes.dll
+C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst.Package\bin\Debug\netstandard2.0\MakeConst.dll
+C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst.Package\bin\Debug\netstandard2.0\MakeConst.CodeFixes.pdb
+C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst.Package\bin\Debug\netstandard2.0\MakeConst.pdb
+C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst.Package\obj\Debug\netstandard2.0\MakeConst.Package.csproj.AssemblyReference.cache
+C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst.Package\obj\Debug\netstandard2.0\MakeConst.Package.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst.Package\obj\Debug\netstandard2.0\MakeConst.Package.AssemblyInfoInputs.cache
+C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst.Package\obj\Debug\netstandard2.0\MakeConst.Package.AssemblyInfo.cs
+C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst.Package\obj\Debug\netstandard2.0\MakeConst.Package.csproj.CoreCompileInputs.cache
+C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst.Package\obj\Debug\netstandard2.0\MakeConst.Package.csproj.CopyComplete
+C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst.Package\obj\Debug\netstandard2.0\MakeConst.Package.dll
+C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst.Package\obj\Debug\netstandard2.0\MakeConst.Package.pdb

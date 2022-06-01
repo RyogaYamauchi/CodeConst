@@ -1,0 +1,12 @@
+C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst\bin\Debug\netstandard2.0\MakeConst.deps.json
+C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst\bin\Debug\netstandard2.0\MakeConst.dll
+C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst\bin\Debug\netstandard2.0\MakeConst.pdb
+C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst\obj\Debug\netstandard2.0\MakeConst.csproj.AssemblyReference.cache
+C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst\obj\Debug\netstandard2.0\MakeConst.Resources.resources
+C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst\obj\Debug\netstandard2.0\MakeConst.csproj.GenerateResource.cache
+C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst\obj\Debug\netstandard2.0\MakeConst.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst\obj\Debug\netstandard2.0\MakeConst.AssemblyInfoInputs.cache
+C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst\obj\Debug\netstandard2.0\MakeConst.AssemblyInfo.cs
+C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst\obj\Debug\netstandard2.0\MakeConst.csproj.CoreCompileInputs.cache
+C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst\obj\Debug\netstandard2.0\MakeConst.dll
+C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst\obj\Debug\netstandard2.0\MakeConst.pdb

@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2011/08/nuspec.xsd">
+  <metadata>
+    <id>MakeConst</id>
+    <version>1.0.0</version>
+    <authors>ylb</authors>
+    <developmentDependency>true</developmentDependency>
+    <licenseUrl>http://license_url_here_or_delete_this_line/</licenseUrl>
+    <projectUrl>http://project_url_here_or_delete_this_line/</projectUrl>
+    <iconUrl>http://icon_url_here_or_delete_this_line/</iconUrl>
+    <description>MakeConst</description>
+    <releaseNotes>Summary of changes made in this release of the package.</releaseNotes>
+    <copyright>Copyright</copyright>
+    <tags>MakeConst, analyzers</tags>
+    <repository url="http://REPOSITORY_URL_HERE_OR_DELETE_THIS_LINE" />
+  </metadata>
+  <files>
+    <file src="C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst.Package\bin\Debug\netstandard2.0\MakeConst.dll" target="analyzers\dotnet\cs\MakeConst.dll" />
+    <file src="C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst.Package\bin\Debug\netstandard2.0\MakeConst.CodeFixes.dll" target="analyzers\dotnet\cs\MakeConst.CodeFixes.dll" />
+    <file src="C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst.Package\tools\install.ps1" target="tools\install.ps1" />
+    <file src="C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst.Package\tools\uninstall.ps1" target="tools\uninstall.ps1" />
+  </files>
+</package>

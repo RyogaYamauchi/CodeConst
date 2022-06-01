@@ -1,0 +1,15 @@
+C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst.CodeFixes\bin\Debug\netstandard2.0\MakeConst.CodeFixes.deps.json
+C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst.CodeFixes\bin\Debug\netstandard2.0\MakeConst.CodeFixes.dll
+C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst.CodeFixes\bin\Debug\netstandard2.0\MakeConst.CodeFixes.pdb
+C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst.CodeFixes\bin\Debug\netstandard2.0\MakeConst.dll
+C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst.CodeFixes\bin\Debug\netstandard2.0\MakeConst.pdb
+C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst.CodeFixes\obj\Debug\netstandard2.0\MakeConst.CodeFixes.csproj.AssemblyReference.cache
+C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst.CodeFixes\obj\Debug\netstandard2.0\MakeConst.CodeFixResources.resources
+C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst.CodeFixes\obj\Debug\netstandard2.0\MakeConst.CodeFixes.csproj.GenerateResource.cache
+C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst.CodeFixes\obj\Debug\netstandard2.0\MakeConst.CodeFixes.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst.CodeFixes\obj\Debug\netstandard2.0\MakeConst.CodeFixes.AssemblyInfoInputs.cache
+C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst.CodeFixes\obj\Debug\netstandard2.0\MakeConst.CodeFixes.AssemblyInfo.cs
+C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst.CodeFixes\obj\Debug\netstandard2.0\MakeConst.CodeFixes.csproj.CoreCompileInputs.cache
+C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst.CodeFixes\obj\Debug\netstandard2.0\MakeConst.CodeFixes.csproj.CopyComplete
+C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst.CodeFixes\obj\Debug\netstandard2.0\MakeConst.CodeFixes.dll
+C:\Users\yaryo\source\repos\MakeConst\MakeConst\MakeConst.CodeFixes\obj\Debug\netstandard2.0\MakeConst.CodeFixes.pdb
