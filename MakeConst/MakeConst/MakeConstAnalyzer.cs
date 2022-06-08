@@ -48,12 +48,30 @@ namespace MakeConst
 
             DataFlowAnalysis dataFlowAnalysis = context.SemanticModel.AnalyzeDataFlow(localDeclaration);
 
-            VariableDeclaratorSyntax variable = localDeclaration.Declaration.Variables.Single();
-            ISymbol variableSymbol = context.SemanticModel.GetDeclaredSymbol(variable, context.CancellationToken);
-            // data flow analysisさんを使って、変数のシンボルに対して上書きがあるかどうかを調べる
-            if (dataFlowAnalysis.WrittenOutside.Contains(variableSymbol))
+            foreach (VariableDeclaratorSyntax variable in localDeclaration.Declaration.Variables)
             {
-                return;
+                EqualsValueClauseSyntax initializer = variable.Initializer;
+                if (initializer == null)
+                {
+                    return;
+                }
+
+                Optional<object> constantValue = context.SemanticModel.GetConstantValue(initializer.Value, context.CancellationToken);
+                if (!constantValue.HasValue)
+                {
+                    return;
+                }
+            }
+
+            foreach (VariableDeclaratorSyntax variable in localDeclaration.Declaration.Variables)
+            {
+                // Retrieve the local symbol for each variable in the local declaration
+                // and ensure that it is not written outside of the data flow analysis region.
+                ISymbol variableSymbol = context.SemanticModel.GetDeclaredSymbol(variable, context.CancellationToken);
+                if (dataFlowAnalysis.WrittenOutside.Contains(variableSymbol))
+                {
+                    return;
+                }
             }
             // レポートをコンテキストに返す
             context.ReportDiagnostic(Diagnostic.Create(Rule, context.Node.GetLocation(), localDeclaration.Declaration.Variables.First().Identifier.ValueText));
