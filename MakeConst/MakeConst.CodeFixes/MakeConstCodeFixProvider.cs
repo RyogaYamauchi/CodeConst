@@ -13,6 +13,8 @@ using System.Composition;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.CodeAnalysis.Simplification;
+
 
 namespace MakeConst
 {
@@ -68,11 +70,43 @@ namespace MakeConst
             // modifiersをトリミングしたローカルのSyntaxの0番目に無理やり差し込もうとしている？
             SyntaxTokenList newModifiers = trimmedLocal.Modifiers.Insert(0, constToken);
 
-            // コード修正後のSyntaxを作成している？
-            LocalDeclarationStatementSyntax newLocal = trimmedLocal
-                .WithModifiers(newModifiers)
-                .WithDeclaration(localDeclaration.Declaration);
-            
+            // If the type of the declaration is 'var', create a new type name
+            // for the inferred type.
+            VariableDeclarationSyntax variableDeclaration = localDeclaration.Declaration;
+            TypeSyntax variableTypeName = variableDeclaration.Type;
+            if (variableTypeName.IsVar)
+            {
+                SemanticModel semanticModel = await document.GetSemanticModelAsync(cancellationToken).ConfigureAwait(false);
+
+                // Special case: Ensure that 'var' isn't actually an alias to another type
+                // (e.g. using var = System.String).
+                IAliasSymbol aliasInfo = semanticModel.GetAliasInfo(variableTypeName, cancellationToken);
+                if (aliasInfo == null)
+                {
+                    // Retrieve the type inferred for var.
+                    ITypeSymbol type = semanticModel.GetTypeInfo(variableTypeName, cancellationToken).ConvertedType;
+
+                    // Special case: Ensure that 'var' isn't actually a type named 'var'.
+                    if (type.Name != "var")
+                    {
+                        // Create a new TypeSyntax for the inferred type. Be careful
+                        // to keep any leading and trailing trivia from the var keyword.
+                        TypeSyntax typeName = SyntaxFactory.ParseTypeName(type.ToDisplayString())
+                            .WithLeadingTrivia(variableTypeName.GetLeadingTrivia())
+                            .WithTrailingTrivia(variableTypeName.GetTrailingTrivia());
+
+                        // Add an annotation to simplify the type name.
+                        TypeSyntax simplifiedTypeName = typeName.WithAdditionalAnnotations(Simplifier.Annotation);
+
+                        // Replace the type in the variable declaration.
+                        variableDeclaration = variableDeclaration.WithType(simplifiedTypeName);
+                    }
+                }
+            }
+            // Produce the new local declaration.
+            LocalDeclarationStatementSyntax newLocal = trimmedLocal.WithModifiers(newModifiers)
+                                       .WithDeclaration(variableDeclaration);
+
             // フォーマッターを使っていい感じにフォーマットしている？
             LocalDeclarationStatementSyntax formattedLocal = newLocal.WithAdditionalAnnotations(Formatter.Annotation);
 

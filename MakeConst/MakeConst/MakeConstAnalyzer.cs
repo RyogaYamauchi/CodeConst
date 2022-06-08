@@ -48,6 +48,9 @@ namespace MakeConst
 
             DataFlowAnalysis dataFlowAnalysis = context.SemanticModel.AnalyzeDataFlow(localDeclaration);
 
+            TypeSyntax variableTypeName = localDeclaration.Declaration.Type;
+            ITypeSymbol variableType = context.SemanticModel.GetTypeInfo(variableTypeName, context.CancellationToken).ConvertedType;
+
             foreach (VariableDeclaratorSyntax variable in localDeclaration.Declaration.Variables)
             {
                 EqualsValueClauseSyntax initializer = variable.Initializer;
@@ -58,6 +61,24 @@ namespace MakeConst
 
                 Optional<object> constantValue = context.SemanticModel.GetConstantValue(initializer.Value, context.CancellationToken);
                 if (!constantValue.HasValue)
+                {
+                    return;
+                }
+
+                if (constantValue.Value is string)
+                {
+                    if (variableType.SpecialType != SpecialType.System_String)
+                    {
+                        return;
+                    }
+                }
+                else if (variableType.IsReferenceType && constantValue.Value != null)
+                {
+                    return;
+                }
+
+                Conversion conversion = context.SemanticModel.ClassifyConversion(initializer.Value, variableType);
+                if (!conversion.Exists || conversion.IsUserDefined)
                 {
                     return;
                 }
