@@ -10,6 +10,11 @@ namespace MakeConst.Test
     public class MakeConstUnitTest
     {
         [TestMethod]
+        public async Task IfStateMent_Diagnostic()
+        {
+        }
+
+        [TestMethod]
         public async Task LocalIntCouldBeConstant_Diagnostic()
         {
             await VerifyCS.VerifyCodeFixAsync(@"

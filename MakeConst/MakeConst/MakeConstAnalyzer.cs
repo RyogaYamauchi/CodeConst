@@ -33,11 +33,24 @@ namespace MakeConst
 
             // TODO: Consider registering other actions that act on syntax instead of or in addition to symbols
             // See https://github.com/dotnet/roslyn/blob/main/docs/analyzers/Analyzer%20Actions%20Semantics.md for more information
-            context.RegisterSyntaxNodeAction(AnalyzeNode, SyntaxKind.LocalDeclarationStatement);
+            // context.RegisterSyntaxNodeAction(AnalyzeLocalVariableNode, SyntaxKind.LocalDeclarationStatement);
+            context.RegisterSyntaxNodeAction(AnalyzeIfStatementNode, SyntaxKind.IfStatement);
+        }
+
+        private void AnalyzeIfStatementNode(SyntaxNodeAnalysisContext context)
+        {
+            Console.WriteLine("---------start----------");
+
+            var node = (IfStatementSyntax)context.Node;
+            var dataFlowAnalysis = context.SemanticModel.AnalyzeDataFlow(node);
+
+            context.ReportDiagnostic(Diagnostic.Create(Rule, context.Node.GetLocation(), "if分岐です"));
+
+            Console.WriteLine("---------end----------");
         }
 
         // ローカルで変数定義の時に呼び出される
-        private void AnalyzeNode(SyntaxNodeAnalysisContext context)
+        private void AnalyzeLocalVariableNode(SyntaxNodeAnalysisContext context)
         {
             // constがついていないものに対して解析をかける
             var localDeclaration = (LocalDeclarationStatementSyntax)context.Node;
