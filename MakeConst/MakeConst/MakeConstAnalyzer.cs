@@ -14,7 +14,7 @@ namespace MakeConst
     public class MakeConstAnalyzer : DiagnosticAnalyzer
     {
         public const string DiagnosticId = "MakeConst";
-        private List<int> _ifList = new List<int>();
+        private List<string> _variableList = new List<string>();
 
         // You can change these strings in the Resources.resx file. If you do not want your analyzer to be localize-able, you can use regular strings for Title and MessageFormat.
         // See https://github.com/dotnet/roslyn/blob/main/docs/analyzers/Localizing%20Analyzers.md for more on localization
@@ -35,25 +35,16 @@ namespace MakeConst
             // TODO: Consider registering other actions that act on syntax instead of or in addition to symbols
             // See https://github.com/dotnet/roslyn/blob/main/docs/analyzers/Analyzer%20Actions%20Semantics.md for more information
             // context.RegisterSyntaxNodeAction(AnalyzeLocalVariableNode, SyntaxKind.LocalDeclarationStatement);
-            context.RegisterSyntaxNodeAction(AnalyzeIfStatementNode, SyntaxKind.MethodDeclaration);
+            context.RegisterSyntaxNodeAction(AnalyzeLocalDecriation, SyntaxKind.MethodDeclaration);
         }
-        private void AnalyzeIfStatementNode(SyntaxNodeAnalysisContext context)
+        private void AnalyzeLocalDecriation(SyntaxNodeAnalysisContext context)
         {
-            Console.WriteLine("---------start----------");
-            var node= (MethodDeclarationSyntax)context.Node;
-            var dataFlowAnalysis = context.SemanticModel.AnalyzeDataFlow(node);
-
-            var ifStatements = node.ChildNodes().OfType<IfStatementSyntax>();
-            if (ifStatements.Count() > 0)
-            {
-                context.ReportDiagnostic(Diagnostic.Create(Rule, context.Node.GetLocation(), "if分岐が1つ以上あります"));
-            }
-            else
-            {
-                context.ReportDiagnostic(Diagnostic.Create(Rule, context.Node.GetLocation(), "if分岐が0つでした"));
-            }
-
-            Console.WriteLine("---------end----------");
+            var methodNode = (MethodDeclarationSyntax)context.Node;
+            var localDeclarationNodes = methodNode.Body.ChildNodes().OfType<LocalDeclarationStatementSyntax>();
+            var str = "\n---start\n";
+            str += $"変数定義の数 : {localDeclarationNodes.Count()}";
+            str += "\n---end\n";
+            context.ReportDiagnostic(Diagnostic.Create(Rule, context.Node.GetLocation(),str));
         }
 
         // ローカルで変数定義の時に呼び出される
