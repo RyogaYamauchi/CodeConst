@@ -14,6 +14,7 @@ namespace MakeConst
     public class MakeConstAnalyzer : DiagnosticAnalyzer
     {
         public const string DiagnosticId = "MakeConst";
+        private List<int> _ifList = new List<int>();
 
         // You can change these strings in the Resources.resx file. If you do not want your analyzer to be localize-able, you can use regular strings for Title and MessageFormat.
         // See https://github.com/dotnet/roslyn/blob/main/docs/analyzers/Localizing%20Analyzers.md for more on localization
@@ -34,17 +35,23 @@ namespace MakeConst
             // TODO: Consider registering other actions that act on syntax instead of or in addition to symbols
             // See https://github.com/dotnet/roslyn/blob/main/docs/analyzers/Analyzer%20Actions%20Semantics.md for more information
             // context.RegisterSyntaxNodeAction(AnalyzeLocalVariableNode, SyntaxKind.LocalDeclarationStatement);
-            context.RegisterSyntaxNodeAction(AnalyzeIfStatementNode, SyntaxKind.IfStatement);
+            context.RegisterSyntaxNodeAction(AnalyzeIfStatementNode, SyntaxKind.MethodDeclaration);
         }
-
         private void AnalyzeIfStatementNode(SyntaxNodeAnalysisContext context)
         {
             Console.WriteLine("---------start----------");
-
-            var node = (IfStatementSyntax)context.Node;
+            var node= (MethodDeclarationSyntax)context.Node;
             var dataFlowAnalysis = context.SemanticModel.AnalyzeDataFlow(node);
 
-            context.ReportDiagnostic(Diagnostic.Create(Rule, context.Node.GetLocation(), "if分岐です"));
+            var ifStatements = node.ChildNodes().OfType<IfStatementSyntax>();
+            if (ifStatements.Count() > 0)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(Rule, context.Node.GetLocation(), "if分岐が1つ以上あります"));
+            }
+            else
+            {
+                context.ReportDiagnostic(Diagnostic.Create(Rule, context.Node.GetLocation(), "if分岐が0つでした"));
+            }
 
             Console.WriteLine("---------end----------");
         }
