@@ -44,23 +44,31 @@ namespace MakeConst
             _context = context;
             var methodNode = (MethodDeclarationSyntax)context.Node;
             var complexity = 1;
-            complexity = AnalyzeCyclomaticComplexity(complexity, methodNode);
-            var str = "\n---start\n";
-            str += $"循環性参照度 : {complexity}\n";
-            str += "\n---end\n";
+            var effectiveNodes = new List<SyntaxNode>();
+            var onIncreaseComplexityActionList = new List<Action<DiagnosticDescriptor>>();
+            AnalyzeCyclomaticComplexity(ref complexity, effectiveNodes, onIncreaseComplexityActionList, methodNode);
+            var str = $"\n循環性参照度が警告ラインを超えました：{complexity}\n";
+            str += "\nこの構文が循環性複雑度を上げています\n";
             if (complexity > 10)
             {
-                context.ReportDiagnostic(Diagnostic.Create(Rule, context.Node.GetLocation(), str));
+                foreach (var action in onIncreaseComplexityActionList) 
+                {
+                    action.Invoke(Rule);
+                }
             }
             else if(complexity > 20)
             {
-                context.ReportDiagnostic(Diagnostic.Create(ErrorRule, context.Node.GetLocation(), str));
+                foreach (var effectiveNode in effectiveNodes)
+                {
+                    //context.ReportDiagnostic(Diagnostic.Create(ErrorRule, effectiveNode.GetLocation(), str));
+                }
             }
 
         }
 
-       private int AnalyzeCyclomaticComplexity(int complexity, SyntaxNode node)
+       private void AnalyzeCyclomaticComplexity(ref int complexity, List<SyntaxNode> effectiveNodes, List<Action<DiagnosticDescriptor>> onIncreaseComplexityActionList, SyntaxNode node)
         {
+            var beforeComplexity = complexity;
             complexity += CheckCyclomaticComplexitySyntax<WhileStatementSyntax>(node);
             complexity += CheckCyclomaticComplexitySyntax<SwitchStatementSyntax>(node);
             complexity += CheckCyclomaticComplexitySyntax<CaseSwitchLabelSyntax>(node);
@@ -74,13 +82,23 @@ namespace MakeConst
             complexity += CheckCyclomaticComplexitySyntax<SwitchExpressionArmSyntax>(node);
             complexity += CheckCyclomaticComplexitySyntax<SwitchExpressionArmSyntax>(node);
             complexity += CheckCyclomaticComplexitySyntax<IfStatementSyntax>(node);
+            var afterComplexity = complexity;
+            Console.WriteLine($"before : {beforeComplexity}, after : {afterComplexity}");
+
+            if (beforeComplexity != complexity)
+            {
+                effectiveNodes.Add(node);
+                onIncreaseComplexityActionList.Add((rule) =>
+                {
+                    _context.ReportDiagnostic(Diagnostic.Create(rule, node.GetLocation(), $"ここで数値上がってるで{beforeComplexity} -> {afterComplexity}"));
+                });
+            }
 
             var childNodes = node.ChildNodes();
             foreach (var childNode in childNodes)
             {
-                complexity += AnalyzeCyclomaticComplexity(0, childNode);
+                AnalyzeCyclomaticComplexity(ref complexity, effectiveNodes, onIncreaseComplexityActionList, childNode);
             }
-            return complexity;
         }
 
         private int CheckCyclomaticComplexitySyntax<T>(SyntaxNode node) where T : SyntaxNode
