@@ -15,6 +15,7 @@ namespace MakeConst
     {
         public const string DiagnosticId = "MakeConst";
         private List<string> _variableList = new List<string>();
+        private SyntaxNodeAnalysisContext _context;
 
         // You can change these strings in the Resources.resx file. If you do not want your analyzer to be localize-able, you can use regular strings for Title and MessageFormat.
         // See https://github.com/dotnet/roslyn/blob/main/docs/analyzers/Localizing%20Analyzers.md for more on localization
@@ -24,6 +25,7 @@ namespace MakeConst
         private const string Category = "Usage";
 
         private static readonly DiagnosticDescriptor Rule = new DiagnosticDescriptor(DiagnosticId, Title, MessageFormat, Category, DiagnosticSeverity.Warning, isEnabledByDefault: true, description: Description);
+        private static readonly DiagnosticDescriptor ErrorRule = new DiagnosticDescriptor(DiagnosticId, Title, MessageFormat, Category, DiagnosticSeverity.Error, isEnabledByDefault: true, description: Description);
 
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get { return ImmutableArray.Create(Rule); } }
 
@@ -39,13 +41,84 @@ namespace MakeConst
         }
         private void AnalyzeLocalDecriation(SyntaxNodeAnalysisContext context)
         {
+            _context = context;
             var methodNode = (MethodDeclarationSyntax)context.Node;
-            var localDeclarationNodes = methodNode.Body.ChildNodes().OfType<LocalDeclarationStatementSyntax>();
+            var complexity = 1;
+            complexity = AnalyzeCyclomaticComplexity(complexity, methodNode);
             var str = "\n---start\n";
-            str += $"変数定義の数 : {localDeclarationNodes.Count()}";
+            str += $"循環性参照度 : {complexity}\n";
             str += "\n---end\n";
-            context.ReportDiagnostic(Diagnostic.Create(Rule, context.Node.GetLocation(),str));
+            if (complexity > 10)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(Rule, context.Node.GetLocation(), str));
+            }
+            else if(complexity > 20)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(ErrorRule, context.Node.GetLocation(), str));
+            }
+
         }
+
+       private int AnalyzeCyclomaticComplexity(int complexity, SyntaxNode node)
+        {
+            complexity += CheckCyclomaticComplexitySyntax<WhileStatementSyntax>(node);
+            complexity += CheckCyclomaticComplexitySyntax<SwitchStatementSyntax>(node);
+            complexity += CheckCyclomaticComplexitySyntax<CaseSwitchLabelSyntax>(node);
+            complexity += CheckCyclomaticComplexitySyntax<CasePatternSwitchLabelSyntax>(node);
+            complexity += CheckCyclomaticComplexitySyntax<ConditionalExpressionSyntax>(node);
+            complexity += CheckCyclomaticComplexitySyntax<ConditionalAccessExpressionSyntax>(node);
+            complexity += CheckCyclomaticComplexityAssignmentSyntax(node);
+            complexity += CheckCyclomaticComplexityBinarySyntax(node);
+            complexity += CheckCyclomaticComplexitySyntax<DoStatementSyntax>(node);
+            complexity += CheckCyclomaticComplexitySyntax<ForStatementSyntax>(node);
+            complexity += CheckCyclomaticComplexitySyntax<SwitchExpressionArmSyntax>(node);
+            complexity += CheckCyclomaticComplexitySyntax<SwitchExpressionArmSyntax>(node);
+            complexity += CheckCyclomaticComplexitySyntax<IfStatementSyntax>(node);
+
+            var childNodes = node.ChildNodes();
+            foreach (var childNode in childNodes)
+            {
+                complexity += AnalyzeCyclomaticComplexity(0, childNode);
+            }
+            return complexity;
+        }
+
+        private int CheckCyclomaticComplexitySyntax<T>(SyntaxNode node) where T : SyntaxNode
+        {
+            if(node is T)
+            {
+                return 1;
+            }
+            return 0;
+        }
+
+        private int CheckCyclomaticComplexityBinarySyntax(SyntaxNode node)
+        {
+            if (node.IsKind(SyntaxKind.CoalesceExpression) ||
+            node.IsKind(SyntaxKind.LogicalAndExpression) ||
+            node.IsKind(SyntaxKind.LogicalOrExpression))
+            {
+                return 1;
+            }
+
+            return 0;
+        }
+
+        private int CheckCyclomaticComplexityAssignmentSyntax(SyntaxNode node)
+        {
+            var kind = node.Kind();
+            if (kind == SyntaxKind.CoalesceAssignmentExpression)
+            {
+                return 1;
+            }
+            else if (kind is SyntaxKind.AmpersandToken || kind is SyntaxKind.BarBarToken)
+            {
+                return 1;
+            }
+
+            return 0;
+        }
+
 
         // ローカルで変数定義の時に呼び出される
         private void AnalyzeLocalVariableNode(SyntaxNodeAnalysisContext context)
