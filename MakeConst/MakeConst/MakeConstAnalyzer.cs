@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 
 namespace MakeConst
@@ -14,7 +15,9 @@ namespace MakeConst
     public class MakeConstAnalyzer : DiagnosticAnalyzer
     {
         public const string DiagnosticId = "MakeConst";
-        private List<string> _variableList = new List<string>();
+        private const int _complexityOneSyntaxMaxCount = 10;
+        private const int _complexityWarnigPercentCount = 21;
+        private const int _complexityErrorPercentCount = 31;
         private SyntaxNodeAnalysisContext _context;
 
         // You can change these strings in the Resources.resx file. If you do not want your analyzer to be localize-able, you can use regular strings for Title and MessageFormat.
@@ -43,67 +46,99 @@ namespace MakeConst
         {
             _context = context;
             var methodNode = (MethodDeclarationSyntax)context.Node;
-            var complexity = 1;
-            var effectiveNodes = new List<SyntaxNode>();
+            var complexityList = new List<SyntaxNode>();
             var onIncreaseComplexityActionList = new List<Action<DiagnosticDescriptor>>();
-            AnalyzeCyclomaticComplexity(ref complexity, effectiveNodes, onIncreaseComplexityActionList, methodNode);
-            var str = $"\n循環性参照度が警告ラインを超えました：{complexity}\n";
-            str += "\nこの構文が循環性複雑度を上げています\n";
-            if (complexity > 10)
+            var onIncreaseComplexityErrorActionList = new List<Action<DiagnosticDescriptor>>();
+            AnalyzeCyclomaticComplexity(complexityList, onIncreaseComplexityActionList, onIncreaseComplexityErrorActionList, methodNode, true);
+
+            var complexity = complexityList.Count;
+
+            Console.WriteLine($"けっか : {complexity} >= {_complexityErrorPercentCount}");
+
+            if (complexity >= _complexityWarnigPercentCount)
             {
-                foreach (var action in onIncreaseComplexityActionList) 
+                foreach (var action in onIncreaseComplexityActionList)
                 {
                     action.Invoke(Rule);
                 }
             }
-            else if(complexity > 20)
+            else if (complexity >= _complexityErrorPercentCount)
             {
-                foreach (var effectiveNode in effectiveNodes)
+                foreach (var action in onIncreaseComplexityActionList)
                 {
-                    //context.ReportDiagnostic(Diagnostic.Create(ErrorRule, effectiveNode.GetLocation(), str));
+                    action.Invoke(ErrorRule);
                 }
             }
-
         }
 
-       private void AnalyzeCyclomaticComplexity(ref int complexity, List<SyntaxNode> effectiveNodes, List<Action<DiagnosticDescriptor>> onIncreaseComplexityActionList, SyntaxNode node)
+        private void AnalyzeCyclomaticComplexity(List<SyntaxNode> complexityList, List<Action<DiagnosticDescriptor>> onIncreaseComplexityActionList, List<Action<DiagnosticDescriptor>> onIncreaseComplexityErrorActionList, SyntaxNode node, bool fromRootNode)
         {
-            var beforeComplexity = complexity;
-            complexity += CheckCyclomaticComplexitySyntax<WhileStatementSyntax>(node);
-            complexity += CheckCyclomaticComplexitySyntax<SwitchStatementSyntax>(node);
-            complexity += CheckCyclomaticComplexitySyntax<CaseSwitchLabelSyntax>(node);
-            complexity += CheckCyclomaticComplexitySyntax<CasePatternSwitchLabelSyntax>(node);
-            complexity += CheckCyclomaticComplexitySyntax<ConditionalExpressionSyntax>(node);
-            complexity += CheckCyclomaticComplexitySyntax<ConditionalAccessExpressionSyntax>(node);
-            complexity += CheckCyclomaticComplexityAssignmentSyntax(node);
-            complexity += CheckCyclomaticComplexityBinarySyntax(node);
-            complexity += CheckCyclomaticComplexitySyntax<DoStatementSyntax>(node);
-            complexity += CheckCyclomaticComplexitySyntax<ForStatementSyntax>(node);
-            complexity += CheckCyclomaticComplexitySyntax<SwitchExpressionArmSyntax>(node);
-            complexity += CheckCyclomaticComplexitySyntax<SwitchExpressionArmSyntax>(node);
-            complexity += CheckCyclomaticComplexitySyntax<IfStatementSyntax>(node);
-            var afterComplexity = complexity;
-            Console.WriteLine($"before : {beforeComplexity}, after : {afterComplexity}");
+            var beforeComplexity = complexityList.Count;
+            AddDictionaryEachType(node, complexityList);
+            var afterComplexity = complexityList.Count;
 
-            if (beforeComplexity != complexity)
+            if (beforeComplexity < afterComplexity)
             {
-                effectiveNodes.Add(node);
                 onIncreaseComplexityActionList.Add((rule) =>
                 {
-                    _context.ReportDiagnostic(Diagnostic.Create(rule, node.GetLocation(), $"ここで数値上がってるで{beforeComplexity} -> {afterComplexity}"));
+                    _context.ReportDiagnostic(Diagnostic.Create(rule, node.GetLocation(), BuildReportText(node, beforeComplexity, afterComplexity)));
                 });
             }
 
             var childNodes = node.ChildNodes();
             foreach (var childNode in childNodes)
             {
-                AnalyzeCyclomaticComplexity(ref complexity, effectiveNodes, onIncreaseComplexityActionList, childNode);
+                var beforeCheckChildrenComplexity = complexityList.Count;
+                AnalyzeCyclomaticComplexity(complexityList, onIncreaseComplexityActionList, onIncreaseComplexityErrorActionList, childNode, false);
+                var afterCheckChildrenComplexity = complexityList.Count;
+
+                if (afterCheckChildrenComplexity - beforeCheckChildrenComplexity >= _complexityOneSyntaxMaxCount && !fromRootNode)
+                {
+                    _context.ReportDiagnostic(Diagnostic.Create(ErrorRule, childNode.GetLocation(), BuildErrorReportText(childNode, beforeCheckChildrenComplexity, afterCheckChildrenComplexity)));
+                }
+
+            }            
+        }
+
+        private string BuildReportText(SyntaxNode node, int beforeComplexity, int afterComplexity)
+        {
+            var type = node.GetType();
+            var className = type.Name;
+            return $"\nまってや！！この関数ちょっと複雑ちゃうか！？！？\nこの部分だけ別の関数に切り出して処理を見やすくしてみいひんか？？\n{ beforeComplexity} -> { afterComplexity}\n{className}}}";
+        }
+
+        private string BuildErrorReportText(SyntaxNode node, int beforeComplexity, int afterComplexity)
+        {
+            var type = node.GetType();
+            var className = type.Name;
+            return $"\nちょっとまってや、、この部分だけで{_complexityOneSyntaxMaxCount}以上も複雑になってるで。{beforeComplexity} -> {afterComplexity}\nさすがに別の関数に分けた方がええんちゃうか...？\n{className}";
+        }
+
+        private void AddDictionaryEachType(SyntaxNode node, List<SyntaxNode> dictionary)
+        {
+            var isIncreased = CheckCyclomaticComplexitySyntax<WhileStatementSyntax>(node) == 1;
+            isIncreased |= CheckCyclomaticComplexitySyntax<WhileStatementSyntax>(node) == 1;
+            isIncreased |= CheckCyclomaticComplexitySyntax<SwitchStatementSyntax>(node) == 1;
+            isIncreased |= CheckCyclomaticComplexitySyntax<CaseSwitchLabelSyntax>(node) == 1;
+            isIncreased |= CheckCyclomaticComplexitySyntax<CasePatternSwitchLabelSyntax>(node) == 1;
+            isIncreased |= CheckCyclomaticComplexitySyntax<ConditionalExpressionSyntax>(node) == 1;
+            isIncreased |= CheckCyclomaticComplexitySyntax<ConditionalAccessExpressionSyntax>(node) == 1;
+            isIncreased |= CheckCyclomaticComplexitySyntax<DoStatementSyntax>(node) == 1;
+            isIncreased |= CheckCyclomaticComplexitySyntax<ForStatementSyntax>(node) == 1;
+            isIncreased |= CheckCyclomaticComplexitySyntax<SwitchExpressionArmSyntax>(node) == 1;
+            isIncreased |= CheckCyclomaticComplexitySyntax<IfStatementSyntax>(node) == 1;
+            isIncreased |= CheckCyclomaticComplexityAssignmentSyntax(node) == 1;
+            isIncreased |= CheckCyclomaticComplexityBinarySyntax(node) == 1;
+            if (isIncreased)
+            {
+                dictionary.Add(node);
             }
         }
 
+
         private int CheckCyclomaticComplexitySyntax<T>(SyntaxNode node) where T : SyntaxNode
         {
-            if(node is T)
+            if (node is T)
             {
                 return 1;
             }
@@ -215,5 +250,20 @@ namespace MakeConst
                 context.ReportDiagnostic(diagnostic);
             }
         }
+    }
+
+    enum SyntaxNodeType
+    {
+        While = 1,
+        Switch = 2,
+        Case = 3,
+        CasePattern = 4,
+        ConsitionalExpression = 5,
+        ConsitionalAccessExpression = 6,
+        DoStatement = 7,
+        ForStatement = 8,
+        SwitchExpressionArm = 9,
+        IfStatement = 10,
+        SwitchLabel = 11,
     }
 }
