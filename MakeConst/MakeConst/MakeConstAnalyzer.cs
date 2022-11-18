@@ -7,6 +7,8 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Threading;
 
 namespace MakeConst
@@ -46,58 +48,62 @@ namespace MakeConst
         {
             _context = context;
             var methodNode = (MethodDeclarationSyntax)context.Node;
-            var complexityList = new List<SyntaxNode>();
-            var onIncreaseComplexityActionList = new List<Action<DiagnosticDescriptor>>();
             var onIncreaseComplexityErrorActionList = new List<Action<DiagnosticDescriptor>>();
-            AnalyzeCyclomaticComplexity(complexityList, onIncreaseComplexityActionList, onIncreaseComplexityErrorActionList, methodNode, true);
+            var complexity = 1;
 
-            var complexity = complexityList.Count;
-
-            Console.WriteLine($"けっか : {complexity} >= {_complexityErrorPercentCount}");
+            // depth1のノードで計測 2は型、引数、ボディなので2
+            var childNodes = methodNode.ChildNodes().ToArray()[2].ChildNodes();
+            foreach (var childNode in childNodes)
+            {
+                // -1しているのはそれぞれのsyntaxでcomplexityを表示しているため
+                complexity += AnalyzeCyclomaticComplexity(onIncreaseComplexityErrorActionList, childNode) - 1;
+                Console.WriteLine(childNode.GetType().ToString() + complexity);
+            }
 
             if (complexity >= _complexityWarnigPercentCount)
             {
-                foreach (var action in onIncreaseComplexityActionList)
-                {
-                    action.Invoke(Rule);
-                }
+                _context.ReportDiagnostic(Diagnostic.Create(Rule, methodNode.GetLocation(), BuildReportText(methodNode, 0, complexity)));
             }
             else if (complexity >= _complexityErrorPercentCount)
             {
-                foreach (var action in onIncreaseComplexityActionList)
-                {
-                    action.Invoke(ErrorRule);
-                }
+                _context.ReportDiagnostic(Diagnostic.Create(ErrorRule, methodNode.GetLocation(), BuildReportText(methodNode, 0, complexity)));
             }
         }
 
-        private void AnalyzeCyclomaticComplexity(List<SyntaxNode> complexityList, List<Action<DiagnosticDescriptor>> onIncreaseComplexityActionList, List<Action<DiagnosticDescriptor>> onIncreaseComplexityErrorActionList, SyntaxNode node, bool fromRootNode)
+        private int AnalyzeCyclomaticComplexity(List<Action<DiagnosticDescriptor>> onIncreaseComplexityErrorActionList, SyntaxNode node)
         {
-            var beforeComplexity = complexityList.Count;
-            AddDictionaryEachType(node, complexityList);
-            var afterComplexity = complexityList.Count;
+            var complexityList = new List<SyntaxNode>();
+            var allChildNodeList = new List<SyntaxNode>();
 
-            if (beforeComplexity < afterComplexity)
+            // 自分自身を数える
+            AddListEachType(node, allChildNodeList);
+
+            // 子供を数え上げる
+            AddAllChildNodes(node, allChildNodeList);
+
+            foreach (var childNode in allChildNodeList)
             {
-                onIncreaseComplexityActionList.Add((rule) =>
-                {
-                    _context.ReportDiagnostic(Diagnostic.Create(rule, node.GetLocation(), BuildReportText(node, beforeComplexity, afterComplexity)));
-                });
+                AddListEachType(childNode, complexityList);
+            }
+            // 初期値1
+            var complexity = 1;
+            complexity += complexityList.Count;
+
+            if (complexity >= _complexityOneSyntaxMaxCount)
+            {
+                _context.ReportDiagnostic(Diagnostic.Create(ErrorRule, node.GetLocation(), BuildErrorReportText(complexityList)));
             }
 
-            var childNodes = node.ChildNodes();
-            foreach (var childNode in childNodes)
+            return complexity;
+        }
+
+        private void AddAllChildNodes(SyntaxNode node, List<SyntaxNode> allNodeList)
+        {
+            foreach(var childNode in node.ChildNodes())
             {
-                var beforeCheckChildrenComplexity = complexityList.Count;
-                AnalyzeCyclomaticComplexity(complexityList, onIncreaseComplexityActionList, onIncreaseComplexityErrorActionList, childNode, false);
-                var afterCheckChildrenComplexity = complexityList.Count;
-
-                if (afterCheckChildrenComplexity - beforeCheckChildrenComplexity >= _complexityOneSyntaxMaxCount && !fromRootNode)
-                {
-                    _context.ReportDiagnostic(Diagnostic.Create(ErrorRule, childNode.GetLocation(), BuildErrorReportText(childNode, beforeCheckChildrenComplexity, afterCheckChildrenComplexity)));
-                }
-
-            }            
+                allNodeList.Add(childNode);
+                AddAllChildNodes(childNode, allNodeList);
+            }
         }
 
         private string BuildReportText(SyntaxNode node, int beforeComplexity, int afterComplexity)
@@ -107,14 +113,20 @@ namespace MakeConst
             return $"\nまってや！！この関数ちょっと複雑ちゃうか！？！？\nこの部分だけ別の関数に切り出して処理を見やすくしてみいひんか？？\n{ beforeComplexity} -> { afterComplexity}\n{className}}}";
         }
 
-        private string BuildErrorReportText(SyntaxNode node, int beforeComplexity, int afterComplexity)
+        private string BuildErrorReportText(List<SyntaxNode> nodes)
         {
-            var type = node.GetType();
-            var className = type.Name;
-            return $"\nちょっとまってや、、この部分だけで{_complexityOneSyntaxMaxCount}以上も複雑になってるで。{beforeComplexity} -> {afterComplexity}\nさすがに別の関数に分けた方がええんちゃうか...？\n{className}";
+            var sb = new StringBuilder();
+            sb.AppendLine($"ちょっとまってや、、この部分だけで{nodes.Count}も複雑になってるで。");
+            var kindNodeNames = nodes.Select(node => node.GetType().Name).Distinct();
+            foreach (var nodeName in kindNodeNames)
+            {
+                var count = nodes.Count(node => node.GetType().Name == nodeName);
+                sb.AppendLine($"{nodeName}で上がっているcomplexity...{count}");
+            }
+            return sb.ToString();
         }
 
-        private void AddDictionaryEachType(SyntaxNode node, List<SyntaxNode> dictionary)
+        private void AddListEachType(SyntaxNode node, List<SyntaxNode> list)
         {
             var isIncreased = CheckCyclomaticComplexitySyntax<WhileStatementSyntax>(node) == 1;
             isIncreased |= CheckCyclomaticComplexitySyntax<WhileStatementSyntax>(node) == 1;
@@ -131,8 +143,26 @@ namespace MakeConst
             isIncreased |= CheckCyclomaticComplexityBinarySyntax(node) == 1;
             if (isIncreased)
             {
-                dictionary.Add(node);
+                list.Add(node);
             }
+        }
+
+        private bool IsComplexityNode(SyntaxNode node)
+        {
+            var isIncreased = CheckCyclomaticComplexitySyntax<WhileStatementSyntax>(node) == 1;
+            isIncreased |= CheckCyclomaticComplexitySyntax<WhileStatementSyntax>(node) == 1;
+            isIncreased |= CheckCyclomaticComplexitySyntax<SwitchStatementSyntax>(node) == 1;
+            isIncreased |= CheckCyclomaticComplexitySyntax<CaseSwitchLabelSyntax>(node) == 1;
+            isIncreased |= CheckCyclomaticComplexitySyntax<CasePatternSwitchLabelSyntax>(node) == 1;
+            isIncreased |= CheckCyclomaticComplexitySyntax<ConditionalExpressionSyntax>(node) == 1;
+            isIncreased |= CheckCyclomaticComplexitySyntax<ConditionalAccessExpressionSyntax>(node) == 1;
+            isIncreased |= CheckCyclomaticComplexitySyntax<DoStatementSyntax>(node) == 1;
+            isIncreased |= CheckCyclomaticComplexitySyntax<ForStatementSyntax>(node) == 1;
+            isIncreased |= CheckCyclomaticComplexitySyntax<SwitchExpressionArmSyntax>(node) == 1;
+            isIncreased |= CheckCyclomaticComplexitySyntax<IfStatementSyntax>(node) == 1;
+            isIncreased |= CheckCyclomaticComplexityAssignmentSyntax(node) == 1;
+            isIncreased |= CheckCyclomaticComplexityBinarySyntax(node) == 1;
+            return isIncreased;
         }
 
 

@@ -67,14 +67,27 @@ switch (type)
         break;
 }
 
-if (true && true && true && true)
+switch (type)
 {
-if (true && true && true && true)
-{
-if (true && true && true && true)
-{
+
+    case RarityType.None:
+        break;
+    case RarityType.Rare:
+        break;
+    case RarityType.SuperRare:
+        break;
+    case RarityType.SpecialRare:
+        break;
 }
-}
+
+if (true && true && true && true)
+{
+if (true && true && true && true)
+  {
+    if (true && true && true && true)
+    {
+    }
+  }
 }
 
 
