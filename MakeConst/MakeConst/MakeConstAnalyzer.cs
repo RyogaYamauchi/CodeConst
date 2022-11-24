@@ -5,6 +5,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography.X509Certificates;
@@ -20,6 +21,7 @@ namespace MakeConst
         private const int _complexityOneSyntaxMaxCount = 10;
         private const int _complexityWarnigPercentCount = 21;
         private const int _complexityErrorPercentCount = 31;
+        private string directoryName => @"D:\";
         private SyntaxNodeAnalysisContext _context;
 
         // You can change these strings in the Resources.resx file. If you do not want your analyzer to be localize-able, you can use regular strings for Title and MessageFormat.
@@ -67,6 +69,20 @@ namespace MakeConst
             else if (complexity >= _complexityErrorPercentCount)
             {
                 _context.ReportDiagnostic(Diagnostic.Create(ErrorRule, methodNode.GetLocation(), BuildReportText(methodNode, 0, complexity)));
+            }
+            SaveFile(directoryName, "sample.txt", "hello");
+        }
+
+        private void SaveFile(string directoryName, string fileName, string text)
+        {
+            if(File.Exists(directoryName + fileName))
+            {
+                File.WriteAllText(directoryName + fileName, text);
+            }
+            else
+            {
+                File.Create(directoryName + fileName);
+                File.WriteAllText(directoryName + fileName, text);
             }
         }
 
