@@ -8,9 +8,11 @@ using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Runtime.Serialization.Json;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
+using System.Xml.Serialization;
 
 namespace MakeConst
 {
@@ -22,6 +24,11 @@ namespace MakeConst
         private const int _complexityWarnigPercentCount = 21;
         private const int _complexityErrorPercentCount = 31;
         private string directoryName => @"D:\";
+        private string fileName = "sample.json";
+        private DataContractJsonSerializer _serializer = new DataContractJsonSerializer(typeof(FunctionData));
+        private FunctionData _functionData;
+        private List<SyntaxData> _syntaxDataList = new List<SyntaxData>();
+
         private SyntaxNodeAnalysisContext _context;
 
         // You can change these strings in the Resources.resx file. If you do not want your analyzer to be localize-able, you can use regular strings for Title and MessageFormat.
@@ -48,6 +55,8 @@ namespace MakeConst
         }
         private void AnalyzeLocalDecriation(SyntaxNodeAnalysisContext context)
         {
+            _functionData = null;
+            _syntaxDataList = new List<SyntaxData>();
             _context = context;
             var methodNode = (MethodDeclarationSyntax)context.Node;
             var onIncreaseComplexityErrorActionList = new List<Action<DiagnosticDescriptor>>();
@@ -70,21 +79,43 @@ namespace MakeConst
             {
                 _context.ReportDiagnostic(Diagnostic.Create(ErrorRule, methodNode.GetLocation(), BuildReportText(methodNode, 0, complexity)));
             }
-            SaveFile(directoryName, "sample.txt", "hello");
+
+            _functionData = new FunctionData()
+            {
+                MethodName = methodNode.Identifier.ToString(),
+                ComplexityCount = complexity,
+                ChildSyntaxData = _syntaxDataList,
+            };
+            SerializeData();
         }
 
-        private void SaveFile(string directoryName, string fileName, string text)
+        private void SerializeData()
         {
-            if(File.Exists(directoryName + fileName))
+            using (var stream = new MemoryStream())
+            using (var fs = new FileStream(directoryName + fileName, FileMode.Create))
+            using (var sw = new StreamWriter(fs))
             {
-                File.WriteAllText(directoryName + fileName, text);
-            }
-            else
-            {
-                File.Create(directoryName + fileName);
-                File.WriteAllText(directoryName + fileName, text);
+                _serializer.WriteObject(stream, _functionData);
+                var str2write = Encoding.UTF8.GetString(stream.ToArray());
+                sw.Write(str2write);
             }
         }
+
+        private SyntaxData ConvertFrom(SyntaxNode node)
+        {
+            var childSyntaxDataList = new List<SyntaxData>();
+            foreach(var childNode in node.ChildNodes())
+            {
+                var childSyntaxData = ConvertFrom(childNode);
+                childSyntaxDataList.Add(childSyntaxData);
+            }
+            return new SyntaxData()
+            {
+                Body = node.ToString(),
+                childSyntaxData = childSyntaxDataList,
+            };
+        }
+        
 
         private int AnalyzeCyclomaticComplexity(List<Action<DiagnosticDescriptor>> onIncreaseComplexityErrorActionList, SyntaxNode node)
         {
@@ -108,6 +139,7 @@ namespace MakeConst
             if (complexity >= _complexityOneSyntaxMaxCount)
             {
                 _context.ReportDiagnostic(Diagnostic.Create(ErrorRule, node.GetLocation(), BuildErrorReportText(complexityList)));
+                _syntaxDataList.Add(ConvertFrom(node));
             }
 
             return complexity;
@@ -311,5 +343,20 @@ namespace MakeConst
         SwitchExpressionArm = 9,
         IfStatement = 10,
         SwitchLabel = 11,
+    }
+
+    [Serializable]
+    class SyntaxData
+    {
+        public string Body { get; set; }
+        public List<SyntaxData >childSyntaxData { get; set; }
+    }
+
+    [Serializable]
+    class FunctionData
+    {
+        public string MethodName { get; set; }
+        public int ComplexityCount { get; set; }
+        public List<SyntaxData> ChildSyntaxData { get; set; }
     }
 }
