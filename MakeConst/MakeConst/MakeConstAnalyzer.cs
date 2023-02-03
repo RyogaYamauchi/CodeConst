@@ -7,12 +7,8 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Runtime.Serialization.Json;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
-using System.Threading;
-using System.Xml.Serialization;
 
 namespace MakeConst
 {
@@ -70,22 +66,17 @@ namespace MakeConst
                 complexity += AnalyzeCyclomaticComplexity(onIncreaseComplexityErrorActionList, childNode) - 1;
                 Console.WriteLine(childNode.GetType().ToString() + complexity);
             }
-
-            if (complexity >= _complexityWarnigPercentCount)
-            {
-                _context.ReportDiagnostic(Diagnostic.Create(Rule, methodNode.GetLocation(), BuildReportText(methodNode, 0, complexity)));
-            }
-            else if (complexity >= _complexityErrorPercentCount)
-            {
-                _context.ReportDiagnostic(Diagnostic.Create(ErrorRule, methodNode.GetLocation(), BuildReportText(methodNode, 0, complexity)));
-            }
-
             _functionData = new FunctionData()
             {
                 MethodName = methodNode.Identifier.ToString(),
                 ComplexityCount = complexity,
                 ChildSyntaxData = _syntaxDataList,
             };
+
+            if (complexity >= _complexityWarnigPercentCount)
+            {
+                _context.ReportDiagnostic(Diagnostic.Create(Rule, methodNode.GetLocation(), Display.BuildReport(_functionData)));
+            }
             SerializeData();
         }
 
@@ -101,21 +92,24 @@ namespace MakeConst
             }
         }
 
-        private SyntaxData ConvertFrom(SyntaxNode node)
+        private SyntaxData ConvertFrom(SyntaxNode node, int nestCount)
         {
+            nestCount++;
             var childSyntaxDataList = new List<SyntaxData>();
-            foreach(var childNode in node.ChildNodes())
+            foreach (var childNode in node.ChildNodes())
             {
-                var childSyntaxData = ConvertFrom(childNode);
+                var childSyntaxData = ConvertFrom(childNode, nestCount);
                 childSyntaxDataList.Add(childSyntaxData);
             }
             return new SyntaxData()
             {
                 Body = node.ToString(),
                 ChildSyntaxData = childSyntaxDataList,
+                NestCount = nestCount,
+                SyntaxType = ConvertAs(node),
             };
         }
-        
+
 
         private int AnalyzeCyclomaticComplexity(List<Action<DiagnosticDescriptor>> onIncreaseComplexityErrorActionList, SyntaxNode node)
         {
@@ -138,8 +132,10 @@ namespace MakeConst
 
             if (complexity >= _complexityOneSyntaxMaxCount)
             {
-                _context.ReportDiagnostic(Diagnostic.Create(ErrorRule, node.GetLocation(), BuildErrorReportText(complexityList)));
-                _syntaxDataList.Add(ConvertFrom(node));
+                var syntaxData = ConvertFrom(node, 0);
+                var report = Display.BuildReport(syntaxData, complexity);
+                _context.ReportDiagnostic(Diagnostic.Create(ErrorRule, node.GetLocation(), report));
+                _syntaxDataList.Add(syntaxData);
             }
 
             return complexity;
@@ -147,31 +143,11 @@ namespace MakeConst
 
         private void AddAllChildNodes(SyntaxNode node, List<SyntaxNode> allNodeList)
         {
-            foreach(var childNode in node.ChildNodes())
+            foreach (var childNode in node.ChildNodes())
             {
                 allNodeList.Add(childNode);
                 AddAllChildNodes(childNode, allNodeList);
             }
-        }
-
-        private string BuildReportText(SyntaxNode node, int beforeComplexity, int afterComplexity)
-        {
-            var type = node.GetType();
-            var className = type.Name;
-            return $"\nまってや！！この関数ちょっと複雑ちゃうか！？！？\nこの部分だけ別の関数に切り出して処理を見やすくしてみいひんか？？\n{ beforeComplexity} -> { afterComplexity}\n{className}}}";
-        }
-
-        private string BuildErrorReportText(List<SyntaxNode> nodes)
-        {
-            var sb = new StringBuilder();
-            sb.AppendLine($"ちょっとまってや、、この部分だけで{nodes.Count}も複雑になってるで。");
-            var kindNodeNames = nodes.Select(node => node.GetType().Name).Distinct();
-            foreach (var nodeName in kindNodeNames)
-            {
-                var count = nodes.Count(node => node.GetType().Name == nodeName);
-                sb.AppendLine($"{nodeName}で上がっているcomplexity...{count}");
-            }
-            return sb.ToString();
         }
 
         private void AddListEachType(SyntaxNode node, List<SyntaxNode> list)
@@ -198,7 +174,6 @@ namespace MakeConst
         private bool IsComplexityNode(SyntaxNode node)
         {
             var isIncreased = CheckCyclomaticComplexitySyntax<WhileStatementSyntax>(node) == 1;
-            isIncreased |= CheckCyclomaticComplexitySyntax<WhileStatementSyntax>(node) == 1;
             isIncreased |= CheckCyclomaticComplexitySyntax<SwitchStatementSyntax>(node) == 1;
             isIncreased |= CheckCyclomaticComplexitySyntax<CaseSwitchLabelSyntax>(node) == 1;
             isIncreased |= CheckCyclomaticComplexitySyntax<CasePatternSwitchLabelSyntax>(node) == 1;
@@ -211,6 +186,31 @@ namespace MakeConst
             isIncreased |= CheckCyclomaticComplexityAssignmentSyntax(node) == 1;
             isIncreased |= CheckCyclomaticComplexityBinarySyntax(node) == 1;
             return isIncreased;
+        }
+
+        private SyntaxNodeType ConvertAs(SyntaxNode node)
+        {
+            switch (node)
+            {
+                case IfStatementSyntax syntax:
+                    return SyntaxNodeType.IfStatement;
+                case BinaryExpressionSyntax syntax:
+                    return SyntaxNodeType.Binary;
+                case WhileStatementSyntax syntax:
+                    return SyntaxNodeType.While;
+                case ForStatementSyntax syntax:
+                    return SyntaxNodeType.ForStatement;
+                case SwitchStatementSyntax syntax:
+                    return SyntaxNodeType.Switch;
+                case SwitchLabelSyntax syntax:
+                    return SyntaxNodeType.SwitchLabel;
+                    case DoStatementSyntax syntax:
+                    return SyntaxNodeType.DoStatement;
+                case AssignmentExpressionSyntax syntax:
+                    return SyntaxNodeType.Assignment;
+            }
+            return SyntaxNodeType.None;
+            
         }
 
 
@@ -250,113 +250,163 @@ namespace MakeConst
             return 0;
         }
 
-
-        // ローカルで変数定義の時に呼び出される
-        private void AnalyzeLocalVariableNode(SyntaxNodeAnalysisContext context)
+        enum SyntaxNodeType
         {
-            // constがついていないものに対して解析をかける
-            var localDeclaration = (LocalDeclarationStatementSyntax)context.Node;
-            if (localDeclaration.Modifiers.Any(SyntaxKind.ConstKeyword))
+            None = 0,
+            While = 1,
+            Switch = 2,
+            Case = 3,
+            CasePattern = 4,
+            ConsitionalExpression = 5,
+            ConsitionalAccessExpression = 6,
+            DoStatement = 7,
+            ForStatement = 8,
+            SwitchExpressionArm = 9,
+            IfStatement = 10,
+            SwitchLabel = 11,
+            Binary = 12,
+            Assignment = 13,
+        }
+
+        [Serializable]
+        class SyntaxData
+        {
+            public string Body { get; set; }
+            public List<SyntaxData> ChildSyntaxData { get; set; }
+            public int NestCount { get; set; }
+            public SyntaxNodeType SyntaxType { get; set; }
+        }
+
+        [Serializable]
+        class FunctionData
+        {
+            public string MethodName { get; set; }
+            public int ComplexityCount { get; set; }
+            public List<SyntaxData> ChildSyntaxData { get; set; }
+        }
+
+        static class Display
+        {
+            private static int _showBodyCount = 0;
+            // 特定の部分でのレポートを出す 
+            public static string BuildReport(SyntaxData syntaxData, int complexity)
             {
-                return;
+                var allSyntaxData = new List<SyntaxData>();
+                SelectManySyntax(syntaxData, allSyntaxData);
+                var sb = new StringBuilder();
+                sb.AppendLine("");
+
+                if (syntaxData.NestCount > 2)
+                {
+                    return "";
+                }
+
+                // ネストが一定数以上の場合
+                var maxNestCount = GetNest(syntaxData);
+                if (maxNestCount > ConfigData.AllowNestCount)
+                {
+                    var body = new string(syntaxData.Body.Take(_showBodyCount).ToArray());
+
+                    sb.AppendLine($"ネストが規定以上あります。");
+                }
+
+                // 条件が一定数以上の場合
+                var binaryCount = allSyntaxData.Count(node => node.SyntaxType == SyntaxNodeType.Binary);
+                if (binaryCount > ConfigData.AllowBinaryConditioncount)
+                {
+                    var body = new string(syntaxData.Body.Take(_showBodyCount).ToArray());
+                    sb.AppendLine($"条件が規定以上あります。");
+                }
+
+                // switchの場合
+                var switchCaseCount = allSyntaxData.Count(node => node.SyntaxType == SyntaxNodeType.SwitchExpressionArm);
+                var switchNode = allSyntaxData.FirstOrDefault(node => node.SyntaxType == SyntaxNodeType.Switch);
+                if (switchCaseCount > ConfigData.AllowSwitchCaseCount)
+                {
+                    var body = new string(syntaxData.Body.Take(_showBodyCount).ToArray());
+                    sb.AppendLine($"Switchの分岐が規定以上あります。");
+                }
+
+                // 循環性複雑度が一定数以上の場合
+                if (complexity > ConfigData.AllowSyntaxComplexityCount)
+                {
+                    var body = new string(syntaxData.Body.Take(_showBodyCount).ToArray());
+                    sb.AppendLine($"この部分で局所的に複雑になっているようです。");
+                }
+                sb.AppendLine("この部分を別の関数に切り出してみませんか？");
+                sb.AppendLine($"循環的複雑度...{complexity}");
+
+
+                return sb.ToString();
             }
 
-            DataFlowAnalysis dataFlowAnalysis = context.SemanticModel.AnalyzeDataFlow(localDeclaration);
-
-            TypeSyntax variableTypeName = localDeclaration.Declaration.Type;
-            ITypeSymbol variableType = context.SemanticModel.GetTypeInfo(variableTypeName, context.CancellationToken).ConvertedType;
-
-            foreach (VariableDeclaratorSyntax variable in localDeclaration.Declaration.Variables)
+            // 関数全体でのレポートを出す
+            public static string BuildReport(FunctionData functionData)
             {
-                EqualsValueClauseSyntax initializer = variable.Initializer;
-                if (initializer == null)
+                var sb = new StringBuilder();
+
+                // 循環性複雑度が一定数以上の場合
+                if (functionData.ComplexityCount > ConfigData.AllowFunctionComplexityCount)
+                {
+                    sb.AppendLine($"関数全体で複雑になっているようです。処理部分ごとに別の関数に切り出して複雑度を下げませんか？");
+                }
+
+                return sb.ToString();
+            }
+
+
+            private static void SelectManySyntax(SyntaxData syntaxData, List<SyntaxData> list)
+            {
+                var currentSyntaxData = syntaxData;
+                if (currentSyntaxData.ChildSyntaxData == null)
                 {
                     return;
                 }
-
-                Optional<object> constantValue = context.SemanticModel.GetConstantValue(initializer.Value, context.CancellationToken);
-                if (!constantValue.HasValue)
+                foreach (var childSyntaxData in currentSyntaxData.ChildSyntaxData)
                 {
-                    return;
+                    list.Add(childSyntaxData);
+                    SelectManySyntax(childSyntaxData, list);
                 }
+            }
 
-                if (constantValue.Value is string)
+
+            private static int GetNest(SyntaxData syntaxData)
+            {
+                return GetNestInternal(syntaxData, 0);
+            }
+
+            private static int GetNestInternal(SyntaxData syntaxData, int nestCount)
+            {
+                var maxNest = nestCount;
+                var childNodes = syntaxData.ChildSyntaxData;
+                if (childNodes == null)
                 {
-                    if (variableType.SpecialType != SpecialType.System_String)
+                    return maxNest;
+                }
+                if(syntaxData.SyntaxType == SyntaxNodeType.Binary)
+                {
+                    return maxNest;
+                }
+                foreach (var childNode in childNodes)
+                {
+                    var childNest = GetNestInternal(childNode, nestCount + 1);
+                    if (maxNest < childNest)
                     {
-                        return;
+                        maxNest = childNest;
                     }
                 }
-                else if (variableType.IsReferenceType && constantValue.Value != null)
-                {
-                    return;
-                }
-
-                Conversion conversion = context.SemanticModel.ClassifyConversion(initializer.Value, variableType);
-                if (!conversion.Exists || conversion.IsUserDefined)
-                {
-                    return;
-                }
+                return maxNest;
             }
-
-            foreach (VariableDeclaratorSyntax variable in localDeclaration.Declaration.Variables)
-            {
-                // Retrieve the local symbol for each variable in the local declaration
-                // and ensure that it is not written outside of the data flow analysis region.
-                ISymbol variableSymbol = context.SemanticModel.GetDeclaredSymbol(variable, context.CancellationToken);
-                if (dataFlowAnalysis.WrittenOutside.Contains(variableSymbol))
-                {
-                    return;
-                }
-            }
-            // レポートをコンテキストに返す
-            context.ReportDiagnostic(Diagnostic.Create(Rule, context.Node.GetLocation(), localDeclaration.Declaration.Variables.First().Identifier.ValueText));
-
         }
+    
 
-        private static void AnalyzeSymbol(SymbolAnalysisContext context)
+        public static class ConfigData
         {
-            // TODO: Replace the following code with your own analysis, generating Diagnostic objects for any issues you find
-            var namedTypeSymbol = (INamedTypeSymbol)context.Symbol;
-
-            // Find just those named type symbols with names containing lowercase letters.
-            if (namedTypeSymbol.Name.ToCharArray().Any(char.IsLower))
-            {
-                // For all such symbols, produce a diagnostic.
-                var diagnostic = Diagnostic.Create(Rule, namedTypeSymbol.Locations[0], namedTypeSymbol.Name);
-
-                context.ReportDiagnostic(diagnostic);
-            }
+            public static int AllowNestCount = 2;
+            public static int AllowSyntaxComplexityCount = 3;// ここを変えたら表示される
+            public static int AllowFunctionComplexityCount = 5;// ここを変えたら表示される
+            public static int AllowBinaryConditioncount = 2;
+            public static int AllowSwitchCaseCount = 5;
         }
-    }
-
-    enum SyntaxNodeType
-    {
-        While = 1,
-        Switch = 2,
-        Case = 3,
-        CasePattern = 4,
-        ConsitionalExpression = 5,
-        ConsitionalAccessExpression = 6,
-        DoStatement = 7,
-        ForStatement = 8,
-        SwitchExpressionArm = 9,
-        IfStatement = 10,
-        SwitchLabel = 11,
-    }
-
-    [Serializable]
-    class SyntaxData
-    {
-        public string Body { get; set; }
-        public List<SyntaxData >ChildSyntaxData { get; set; }
-    }
-
-    [Serializable]
-    class FunctionData
-    {
-        public string MethodName { get; set; }
-        public int ComplexityCount { get; set; }
-        public List<SyntaxData> ChildSyntaxData { get; set; }
     }
 }
