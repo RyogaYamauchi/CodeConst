@@ -43,19 +43,17 @@ namespace MakeConst
         {
             context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
             context.EnableConcurrentExecution();
-
-            // TODO: Consider registering other actions that act on syntax instead of or in addition to symbols
-            // See https://github.com/dotnet/roslyn/blob/main/docs/analyzers/Analyzer%20Actions%20Semantics.md for more information
-            // context.RegisterSyntaxNodeAction(AnalyzeLocalVariableNode, SyntaxKind.LocalDeclarationStatement);
-            context.RegisterSyntaxNodeAction(AnalyzeLocalDecriation, SyntaxKind.MethodDeclaration);
+            // ここで処理を登録している
+            context.RegisterSyntaxNodeAction(AnalyzeLocalDeclaration, SyntaxKind.MethodDeclaration);
         }
-        private void AnalyzeLocalDecriation(SyntaxNodeAnalysisContext context)
+
+
+        private void AnalyzeLocalDeclaration(SyntaxNodeAnalysisContext context)
         {
             _functionData = null;
             _syntaxDataList = new List<SyntaxData>();
             _context = context;
             var methodNode = (MethodDeclarationSyntax)context.Node;
-            var onIncreaseComplexityErrorActionList = new List<Action<DiagnosticDescriptor>>();
             var complexity = 1;
 
             // depth1のノードで計測 2は型、引数、ボディなので2
@@ -63,7 +61,7 @@ namespace MakeConst
             foreach (var childNode in childNodes)
             {
                 // -1しているのはそれぞれのsyntaxでcomplexityを表示しているため
-                complexity += AnalyzeCyclomaticComplexity(onIncreaseComplexityErrorActionList, childNode) - 1;
+                complexity += AnalyzeCyclomaticComplexity(childNode) - 1;
                 Console.WriteLine(childNode.GetType().ToString() + complexity);
             }
             _functionData = new FunctionData()
@@ -111,7 +109,7 @@ namespace MakeConst
         }
 
 
-        private int AnalyzeCyclomaticComplexity(List<Action<DiagnosticDescriptor>> onIncreaseComplexityErrorActionList, SyntaxNode node)
+        private int AnalyzeCyclomaticComplexity(SyntaxNode node)
         {
             var complexityList = new List<SyntaxNode>();
             var allChildNodeList = new List<SyntaxNode>();
@@ -169,23 +167,6 @@ namespace MakeConst
             {
                 list.Add(node);
             }
-        }
-
-        private bool IsComplexityNode(SyntaxNode node)
-        {
-            var isIncreased = CheckCyclomaticComplexitySyntax<WhileStatementSyntax>(node) == 1;
-            isIncreased |= CheckCyclomaticComplexitySyntax<SwitchStatementSyntax>(node) == 1;
-            isIncreased |= CheckCyclomaticComplexitySyntax<CaseSwitchLabelSyntax>(node) == 1;
-            isIncreased |= CheckCyclomaticComplexitySyntax<CasePatternSwitchLabelSyntax>(node) == 1;
-            isIncreased |= CheckCyclomaticComplexitySyntax<ConditionalExpressionSyntax>(node) == 1;
-            isIncreased |= CheckCyclomaticComplexitySyntax<ConditionalAccessExpressionSyntax>(node) == 1;
-            isIncreased |= CheckCyclomaticComplexitySyntax<DoStatementSyntax>(node) == 1;
-            isIncreased |= CheckCyclomaticComplexitySyntax<ForStatementSyntax>(node) == 1;
-            isIncreased |= CheckCyclomaticComplexitySyntax<SwitchExpressionArmSyntax>(node) == 1;
-            isIncreased |= CheckCyclomaticComplexitySyntax<IfStatementSyntax>(node) == 1;
-            isIncreased |= CheckCyclomaticComplexityAssignmentSyntax(node) == 1;
-            isIncreased |= CheckCyclomaticComplexityBinarySyntax(node) == 1;
-            return isIncreased;
         }
 
         private SyntaxNodeType ConvertAs(SyntaxNode node)
